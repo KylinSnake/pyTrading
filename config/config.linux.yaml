@@ -1,0 +1,29 @@
+SecurityCache: "<%= ENV['HOME'] %>/jupyter/workstation/pyTrading/data/security.csv"
+MarketDataManager: 
+  Indicator: 
+    - 
+      Id: HSI_CCI_14
+      Parameters: 123
+      SecId: HSIY0
+      Type: CCI
+    - 
+      Id: IF0001_CCY_14
+      SecId: IF0001
+  MarketData: 
+    - 
+      File: "<%= ENV['HOME'] %>/jupyter/workstation/pyTrading/data/HSIY0 history.csv"
+      SecId: HSIY0
+      Start: 100
+    - 
+      File: "<%= ENV['HOME'] %>/jupyter/workstation/pyTrading/data/IF0001 history.csv"
+      SecId: IF001
+TradeManager: 
+PositionManager: 
+  value: 
+    init_cash: 1000000
+    isMargin: 1
+RiskManager: 
+  type: FixPctRiskManager
+  value: 
+    MaxCapitalPercentage: 50
+    RiskPercentage: 2
