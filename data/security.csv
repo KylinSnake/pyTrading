@@ -1,0 +1,3 @@
+#Type,Id,lot_size,currency,fx_rate,transaction_cost_multiplier,transaction_cost_fix_amount,exchange,conversion_ratio,init_margin,call_margin
+F,HSIY0,1,HKD,0.9,0.0001,0.2342,HKFE,50,0.0805,0.0644
+F,IF001,1,RMB,1,0.000023,0,CIIC,300,0.08,0.08
