@@ -1,3 +1,4 @@
+from Common import *
 from Management.MarketData import *
 from Management.Risk import *
 
@@ -9,6 +10,7 @@ creators = {
 	'PositionManager': PositionManager.initialize
 }
 
+runtime_services_type = []
 
 def main(argv: list):
 	if len(argv) != 2:
@@ -21,6 +23,13 @@ def main(argv: list):
 			if not creators[key](config[key], services):
 				print("Failed to create %s" % key)
 				return False
+	#Add runtime servers
+	for runtime_type in runtime_services_type:
+		svc = runtime_type(services)
+		services[svc.name()] = svc
+
+	#MD trigger running
+	services['MarketDataManager'].run()
 
 	return True
 

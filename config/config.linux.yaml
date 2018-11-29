@@ -3,12 +3,16 @@ MarketDataManager:
   Indicator: 
     - 
       Id: HSI_CCI_14
-      Parameters: 123
       SecId: HSIY0
       Type: CCI
+      Parameters: 14
     - 
-      Id: IF0001_CCY_14
+      Id: IF0001_DMI_14
       SecId: IF0001
+      Type: DMI
+      Parameters:
+        DI Length: 14
+        ADX Smooth: 14
   MarketData: 
     - 
       File: "<%= ENV['HOME'] %>/jupyter/workstation/pyTrading/data/HSIY0 history.csv"
@@ -16,7 +20,7 @@ MarketDataManager:
       Start: 100
     - 
       File: "<%= ENV['HOME'] %>/jupyter/workstation/pyTrading/data/IF0001 history.csv"
-      SecId: IF001
+      SecId: IF0001
 TradeManager: 
 PositionManager: 
   value: 

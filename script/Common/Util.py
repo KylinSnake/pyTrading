@@ -82,6 +82,13 @@ def md_volume(d):
 def set_volume(d, px: float):
 	d['volume'] = px
 
+def md_get_accessor(name:str):
+	import Util
+	return getattr(Util, 'md_' + name)
+
+def md_set_accessor(name:str):
+	import Util
+	return getattr(Util, 'set_' + name)
 
 def load_market_data_from_file(filename: str):
 	return np.genfromtxt(filename, encoding='ascii', skip_header=1,
