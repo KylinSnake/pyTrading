@@ -42,10 +42,10 @@ class OrderManager:
 		services['MarketDataManager'].subscribe(self.handle_md_msg)
 		self.order_queue = list()
 	
-	def queue_order(order: Order):
+	def queue_order(self, order: Order):
 		self.order_queue.append(order)
 	
-	def on_action(order:Order, md: np.ndarray):
+	def on_action(self, order:Order, md: np.ndarray):
 		pass
 	
 	def handle_md_msg(self, msg : dict):
@@ -56,16 +56,17 @@ class OrderManager:
 				if self.on_action(order, msg[secId]):
 					continue
 				order.valid_days -= 1
-				if order.valid_days > 0:
-					unhandled.append(order)
+				if order.valid_days == 0:
+					continue
+			unhandled.append(order)
 		self.order_queue = unhandled
 
-clss OrderSimulator(OrderManager):
+class OrderSimulator(OrderManager):
 	def __init__(self, config: dict, services: dict):
 		super().__init__(services)
 		self.trade_mgr = services['TradeManager']
 	
-	def on_action(order:Order, md: np_ndarray):
+	def on_action(self, order:Order, md: np.ndarray):
 		price = 0
 		if order.order_type == OrderType.Market:
 			price = md_open(md)

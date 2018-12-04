@@ -31,3 +31,5 @@ RiskManager:
   value: 
     MaxCapitalPercentage: 50
     RiskPercentage: 2
+OrderManager:
+  type: Simulator

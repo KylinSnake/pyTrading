@@ -29,6 +29,86 @@ class ManagementTest(unittest.TestCase):
 		self.assertEqual(sec.trans_cost_multiplier, 0.0001)
 		self.assertEqual(sec.lot_size, 1)
 		self.assertTrue(mgr.get_security("TEST") is None)
+	
+	def test_OrderManager(self):
+		class MyMDMgr:
+			def __init__(self):
+				self.functions = list()
+				self.md = dict()
+
+			def subscribe(self, f):
+				self.functions.append(f)
+
+			def add_md(self, secId, open_px, high, low, close_px, date='2018-09-12'):
+				self.md[secId] = np.array([(date,open_px, high, low, close_px)], \
+						dtype={'names': ('date','open', 'high', 'low', 'close'),
+						    'formats': ('M8[D]', 'f4', 'f4', 'f4', 'f4')})
+
+			def notify(self):
+				for f in self.functions:
+					f(self.md)
+				self.md = dict()
+
+		services = {'TradeManager':TradeManager(), 'MarketDataManager':MyMDMgr() }
+		OrderManager.initialize({'type':'Simulator'}, services)
+		order_mgr = services['OrderManager']
+		md_mgr = services['MarketDataManager']
+		trade_mgr = services['TradeManager']
+		order_mgr.queue_order(Order('1', OrderType.Market, 1000))
+		order_mgr.queue_order(Order('2', OrderType.Limit, -1000, limit_price = 100))
+		order_mgr.queue_order(Order('3', OrderType.Stop, 200, stop_price = 90))
+		order_mgr.queue_order(Order('4', OrderType.StopLimit, -300, limit_price = 105, stop_price=110))
+		md_mgr.add_md('1', 100.0, 102.2, 98.7, 99.3)
+		md_mgr.add_md('2', 99.3, 102.2, 98.7, 99.3)
+		md_mgr.add_md('3', 100.0, 109.2, 87.6, 101.3)
+		md_mgr.add_md('4', 107.0, 120.0, 106.0, 111.0)
+		md_mgr.notify()
+		self.assertEqual(len(trade_mgr.trades['1']), 1)
+		self.assertEqual(len(trade_mgr.trades['2']), 1)
+		self.assertEqual(len(trade_mgr.trades['3']), 1)
+		self.assertEqual(len(trade_mgr.trades['4']), 1)
+
+		self.assertEqual(trade_mgr.trades['1'][0].price, 100.0)
+		self.assertEqual(trade_mgr.trades['2'][0].price, 100.0)
+		self.assertEqual(trade_mgr.trades['3'][0].price, 90)
+		self.assertEqual(trade_mgr.trades['4'][0].price, 110)
+
+		self.assertEqual(len(order_mgr.order_queue), 0)
+
+		order_mgr.queue_order(Order('1', OrderType.Market, 1000))
+		order_mgr.queue_order(Order('2', OrderType.Limit, -1000, limit_price = 100))
+		order_mgr.queue_order(Order('3', OrderType.Stop, 200, stop_price = 90, valid_days=2))
+		order_mgr.queue_order(Order('4', OrderType.StopLimit, -300, limit_price = 105, stop_price=110, valid_days=2))
+		md_mgr.add_md('1', 1000.0, 1020.2, 980.7, 990.3)
+		md_mgr.add_md('2', 990.3, 1020.2, 980.7, 990.3)
+		md_mgr.add_md('3', 1000.0, 1090.2, 870.6, 1010.3)
+		md_mgr.add_md('4', 1070.0, 1200.0, 1060.0, 1110.0)
+		md_mgr.notify()
+		self.assertEqual(len(trade_mgr.trades['1']), 2)
+		self.assertEqual(len(trade_mgr.trades['2']), 1)
+		self.assertEqual(len(trade_mgr.trades['3']), 1)
+		self.assertEqual(len(trade_mgr.trades['4']), 1)
+		self.assertEqual(len(order_mgr.order_queue), 2)
+		self.assertEqual(trade_mgr.trades['1'][1].price, 1000.0)
+		self.assertEqual(order_mgr.order_queue[0].valid_days, 1)
+		self.assertEqual(order_mgr.order_queue[1].valid_days, 1)
+		md_mgr.add_md('4', 103.0, 120.0, 101.0, 111.0)
+		md_mgr.notify()
+		self.assertEqual(len(trade_mgr.trades['1']), 2)
+		self.assertEqual(len(trade_mgr.trades['2']), 1)
+		self.assertEqual(len(trade_mgr.trades['3']), 1)
+		self.assertEqual(len(trade_mgr.trades['4']), 2)
+		self.assertEqual(trade_mgr.trades['4'][1].price, 105.0)
+		self.assertEqual(len(order_mgr.order_queue), 1)
+		self.assertEqual(order_mgr.order_queue[0].secId, '3')
+
+		md_mgr.add_md('3', 103.0, 120.0, 101.0, 111.0)
+		md_mgr.notify()
+		self.assertEqual(len(trade_mgr.trades['1']), 2)
+		self.assertEqual(len(trade_mgr.trades['2']), 1)
+		self.assertEqual(len(trade_mgr.trades['3']), 1)
+		self.assertEqual(len(trade_mgr.trades['4']), 2)
+		self.assertEqual(len(order_mgr.order_queue), 0)
 
 	def test_Trade_Position_Risk(self):
 		init_cash: float = 3000.0 * 1000.0
