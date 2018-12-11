@@ -96,9 +96,9 @@ class IndicatorTest(unittest.TestCase):
     def test_diverge(self):
         a = np.array([1,4,3,6,7,5,10])
         b = np.array([10,5,4,6,5,2,3])
-        ret = Diverge(a, b, True)
+        ret = Diverge(a, b, True, len(a))
         self.assertEqual(ret, (True, 1, -1))
-        ret = Diverge(-a, -b, False)
+        ret = Diverge(-a, -b, False, len(a))
         self.assertEqual(ret, (True, -1, 1))
 
 if __name__ == '__main__':

@@ -1,4 +1,5 @@
 from Management.Trade import *
+from Management.MarketData import *
 
 
 class Position:
@@ -11,6 +12,10 @@ class Position:
 		self.total_amount: float = 0.0
 		self.margin: float = 0.0
 		self.realized_pnl: float = 0.0
+	
+	@property
+	def average_price(self):
+		return abs(self.total_amount / self.quantity) if self.quantity != 0 else 0.0
 	
 	def get_realized_pnl(self):
 		return self.realized_pnl
@@ -94,39 +99,42 @@ class PositionManager:
 		else:
 			return False
 
-		services[name] = PositionManager(trade_mgr, cash)
+		services[name] = PositionManager(trade_mgr, services['MarketDataManager'], cash)
 		return True
 	
+	def get_position(self, secId: str):
+		sec: Security = SecurityCacheSingleton.get().get_security(secId)
+		assert sec is not None
+		if secId not in self.positions:
+			self.positions[secId] = Position(sec)
+		return self.positions[secId]
 	
 	def on_trade(self, trade: Trade):
-		sec: Security = SecurityCacheSingleton.get().get_security(trade.secId)
-		assert sec is not None
+		self.get_position(trade.secId).update_by_trade(trade, self)
 
-		if trade.secId not in self.positions:
-			self.positions[trade.secId] = Position(sec)
-
-		self.positions[trade.secId].update_by_trade(trade, self)
-
-	def __init__(self, trade_mgr: TradeManager, init_cash: float):
+	def __init__(self, trade_mgr: TradeManager, mkt_mgr: MarketDataManager, init_cash: float):
 		self.init_cash: float = init_cash
 		self.cash: float  = init_cash
 		self.positions = dict()
 		trade_mgr.subscribe(lambda x: self.on_trade(x))
+		mkt_mgr.subscribe(lambda x: self.on_market_data(x))
 		self.listeners = []
 
 	def subscribe(self, f):
 		self.listeners.append(f)
 
-	def on_close_price(self, date: str, px_dict):
-		for sec_id in px_dict:
-			if sec_id in self.positions:
-				pos: Position = self.positions[sec_id]
-				pos.last_update_date = date
-				pos.current_price = px_dict[sec_id] 
-				pos.adjust_margin(self)
-
+	def on_market_data(self, mkt: dict):
+		for sec_Id in mkt:
+			self.on_close_price(sec_Id, md_date(mkt[sec_Id]), md_close(mkt[sec_Id]))
 		for l in self.listeners:
-			l(self.cash, self.positions)
+			l(self)
+
+	def on_close_price(self, sec_Id: str, date: str, price: float):
+		if sec_Id in self.positions:
+			pos: Position = self.positions[sec_Id]
+			pos.last_update_date = date
+			pos.current_price = price
+			pos.adjust_margin(self)
 
 	def get_status(self):
 		r_pnl: float = 0

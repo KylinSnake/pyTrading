@@ -12,7 +12,7 @@ class SecurityType(Enum):
 
 class Security:
 	def __init__(self):
-		self.id: str = None
+		self.Id: str = None
 		self.type: SecurityType = SecurityType.Unknown
 		self.lot_size: int = 0
 		self.currency: str = None
@@ -22,7 +22,7 @@ class Security:
 		self.exchange: str = None
 
 	def init_from_token(self, token):
-		self.id = token[1]
+		self.Id = token[1]
 		self.lot_size = int(token[2])
 		self.currency = token[3]
 		self.fx_rate = float(token[4])
@@ -85,16 +85,16 @@ class SecurityCache:
 	def __init__(self):
 		self.map = dict()
 
-	def get_security(self, sec_id):
-		if sec_id in self.map:
-			return self.map[sec_id]
+	def get_security(self, sec_Id):
+		if sec_Id in self.map:
+			return self.map[sec_Id]
 		return None
 
 	def insert_security(self, security):
-		sec_id = security.id
-		if sec_id in self.map:
-			return False, self.map[sec_id]
-		self.map[sec_id] = security
+		sec_Id = security.Id
+		if sec_Id in self.map:
+			return False, self.map[sec_Id]
+		self.map[sec_Id] = security
 		return True, security
 
 	def create_security(self, token):

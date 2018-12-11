@@ -25,7 +25,7 @@ class RiskManager:
 		self.pos_mgr = pos
 
 	@abstractmethod
-	def get_open_quantity(self, sec_id: str, is_buy: bool, open_price: float, stop_price: float):
+	def get_open_quantity(self, sec_Id: str, is_buy: bool, open_price: float, stop_price: float):
 		pass
 
 
@@ -35,14 +35,14 @@ class FixPctRiskManager(RiskManager):
 		self.pct: float = setting["RiskPercentage"] / 100.0 if "RiskPercentage" in setting else 0.015
 		self.capital_cap = setting["MaxCapitalPercentage"] / 100.0 if "MaxCapitalPercentage" in setting else 0.5
 
-	def get_open_quantity(self, sec_id: str, is_buy: bool, open_price: float, stop_price: float):
-		sec: Future = SecurityCacheSingleton.get().get_security(sec_id)
+	def get_open_quantity(self, sec_Id: str, is_buy: bool, open_price: float, stop_price: float):
+		sec: Future = SecurityCacheSingleton.get().get_security(sec_Id)
 		assert sec is not None
 		risk_per_share: float = abs(open_price - stop_price) * sec.fx_rate * sec.conversion()
 		open_qty: int = 0
 		factor: int = 1 if is_buy else -1
-		if sec_id in self.pos_mgr.positions:
-			pos: Position = self.pos_mgr.positions[sec_id]
+		if sec_Id in self.pos_mgr.positions:
+			pos: Position = self.pos_mgr.positions[sec_Id]
 			open_qty = pos.quantity
 			if open_qty * factor < 0:
 				return 0

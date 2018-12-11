@@ -114,15 +114,13 @@ def sign(n):
 	return abs(n) / n if n != 0.0 else 0
 
 
-def Diverge(indicator, price, is_lowest_extreme, n = None):
+def Diverge(indicator, price, is_lowest_extreme, n):
 	def is_extreme(seq, j):
 		if is_lowest_extreme:
 			return seq[j] < seq[j-1] and seq[j] < seq[j+1]
 		return seq[j] > seq[j-1] and seq[j] > seq[j+1]
 	v1 = None
 	v2 = None
-	if n is None:
-		n = len(indicator)
 	for i in range(1, n-1):
 		if is_extreme(indicator, n-i-1):
 			if v1 is None:

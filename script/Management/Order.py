@@ -39,27 +39,39 @@ class OrderManager:
 		return False
 	
 	def __init__(self, services: dict):
-		services['MarketDataManager'].subscribe(self.handle_md_msg)
+		services['MarketDataManager'].subscribe_sod(self.handle_sod_md)
+		services['MarketDataManager'].subscribe_eod(self.handle_eod_md)
 		self.order_queue = list()
+		self.eod_orders = list()
 	
-	def queue_order(self, order: Order):
-		self.order_queue.append(order)
+	def queue_order(self, order: Order, is_eod = False):
+		if is_eod:
+			self.eod_orders.append(order)
+		else:
+			self.order_queue.append(order)
 	
 	def on_action(self, order:Order, md: np.ndarray):
 		pass
 	
-	def handle_md_msg(self, msg : dict):
+	def process(self, msg : dict, orders: list, is_eod: bool):
 		unhandled = list()
-		for order in self.order_queue:
+		for order in orders:
 			secId = order.secId
 			if secId in msg:
-				if self.on_action(order, msg[secId]):
+				if self.on_action(order, msg[secId]) or is_eod:
 					continue
 				order.valid_days -= 1
 				if order.valid_days == 0:
 					continue
 			unhandled.append(order)
-		self.order_queue = unhandled
+		return unhandled
+	
+	def handle_sod_md(self, msg: dict):
+		self.order_queue = self.process(msg, self.order_queue, False)
+	
+	def handle_eod_md(self, msg: dict):
+		self.process(msg, self.eod_orders, True)
+		self.eod_orders.clear()
 
 class OrderSimulator(OrderManager):
 	def __init__(self, config: dict, services: dict):

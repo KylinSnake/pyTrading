@@ -1,6 +1,35 @@
 import unittest
 from Management import *
 
+class MyMDMgr:
+	def __init__(self):
+		self.functions = list()
+		self.eod_functions = list()
+		self.sod_functions = list()
+		self.md = dict()
+	
+	def subscribe_sod(self, f):
+		self.sod_functions.append(f)
+
+	def subscribe_eod(self, f):
+		self.eod_functions.append(f)
+
+	def subscribe(self, f):
+		self.functions.append(f)
+
+	def add_md(self, secId, open_px, high, low, close_px, date='2018-09-12'):
+		self.md[secId] = np.array([(date,open_px, high, low, close_px)], \
+						dtype={'names': ('date','open', 'high', 'low', 'close'),
+						'formats': ('M8[D]', 'f4', 'f4', 'f4', 'f4')})
+
+	def notify(self):
+		for f in self.sod_functions:
+			f(self.md)
+		for f in self.functions:
+			f(self.md)
+		for f in self.eod_functions:
+			f(self.md)
+		self.md = dict()
 
 class ManagementTest(unittest.TestCase):
 	def setUp(self):
@@ -17,7 +46,7 @@ class ManagementTest(unittest.TestCase):
 		self.assertTrue("HSI" in mgr.map)
 		self.assertTrue("IF01" in mgr.map)
 		sec: Future = mgr.get_security("HSI")
-		self.assertEqual(sec.id, "HSI")
+		self.assertEqual(sec.Id, "HSI")
 		self.assertEqual(sec.fx_rate, 0.87)
 		self.assertEqual(sec.conversion(), sec.conversion_ratio)
 		self.assertEqual(sec.conversion_ratio, 50)
@@ -31,30 +60,12 @@ class ManagementTest(unittest.TestCase):
 		self.assertTrue(mgr.get_security("TEST") is None)
 	
 	def test_OrderManager(self):
-		class MyMDMgr:
-			def __init__(self):
-				self.functions = list()
-				self.md = dict()
-
-			def subscribe(self, f):
-				self.functions.append(f)
-
-			def add_md(self, secId, open_px, high, low, close_px, date='2018-09-12'):
-				self.md[secId] = np.array([(date,open_px, high, low, close_px)], \
-						dtype={'names': ('date','open', 'high', 'low', 'close'),
-						    'formats': ('M8[D]', 'f4', 'f4', 'f4', 'f4')})
-
-			def notify(self):
-				for f in self.functions:
-					f(self.md)
-				self.md = dict()
-
 		services = {'TradeManager':TradeManager(), 'MarketDataManager':MyMDMgr() }
 		OrderManager.initialize({'type':'Simulator'}, services)
 		order_mgr = services['OrderManager']
 		md_mgr = services['MarketDataManager']
 		trade_mgr = services['TradeManager']
-		order_mgr.queue_order(Order('1', OrderType.Market, 1000))
+		order_mgr.queue_order(Order('1', OrderType.Market,1000))
 		order_mgr.queue_order(Order('2', OrderType.Limit, -1000, limit_price = 100))
 		order_mgr.queue_order(Order('3', OrderType.Stop, 200, stop_price = 90))
 		order_mgr.queue_order(Order('4', OrderType.StopLimit, -300, limit_price = 105, stop_price=110))
@@ -110,10 +121,21 @@ class ManagementTest(unittest.TestCase):
 		self.assertEqual(len(trade_mgr.trades['4']), 2)
 		self.assertEqual(len(order_mgr.order_queue), 0)
 
+		md_mgr.add_md('2', 103.0, 120.0, 101.0, 110.0)
+		order_mgr.queue_order(Order('2', OrderType.Limit, -1000, limit_price = 110))
+		order_mgr.queue_order(Order('2', OrderType.Limit, -1000, limit_price = 102), True)
+		order_mgr.queue_order(Order('2', OrderType.Limit, -1000, limit_price = 100), True)
+		md_mgr.notify()
+		self.assertEqual(len(order_mgr.order_queue), 0)
+		self.assertEqual(len(trade_mgr.trades['2']), 3)
+		self.assertEqual(len(order_mgr.eod_orders), 0)
+
+
 	def test_Trade_Position_Risk(self):
 		init_cash: float = 3000.0 * 1000.0
 		tr_mgr = TradeManager()
-		margin_pos_mgr = PositionManager(tr_mgr, init_cash)
+		md_mgr = MyMDMgr()
+		margin_pos_mgr = PositionManager(tr_mgr, md_mgr, init_cash)
 		mgr = SecurityCacheSingleton.get()
 		margin_risk_mgr: FixPctRiskManager = FixPctRiskManager(margin_pos_mgr, {'RiskPercentage': 2})
 		sec: Future = mgr.get_security("HSI")
@@ -145,14 +167,15 @@ class ManagementTest(unittest.TestCase):
 		self.assertEqual(pos.margin, abs(pos.total_amount) * sec.init_margin_ratio)
 
 		old_margin_pos = copy.copy(pos)
-		margin_pos_mgr.on_close_price('20180707', {'HSI': 25500})
+		md_mgr.add_md('HSI', 26500, 27000, 25000, 25500, '2018-07-07')
+		md_mgr.notify()
 		u_pnl = 25500 * sec.fx_rate * pos.quantity * sec.conversion() - pos.total_amount
 		init_cash += (old_margin_pos.margin - pos.margin)
 		self.assertEqual(pos.margin - float(pos.total_amount) * sec.call_margin_ratio < 0.0000001, True)
 		self.assertEqual(margin_pos_mgr.get_status(),
 						 PositionStatus(init_cash + pos.margin + u_pnl, init_cash,
 						  0.0, u_pnl))
-		self.assertEqual(pos.last_update_date, '20180707')
+		self.assertEqual(str(pos.last_update_date), '2018-07-07')
 
 		old_margin_pos = copy.copy(pos)
 		tr_mgr.add_trade("20180708", "HSI", -1, 26000)
@@ -221,7 +244,6 @@ class ManagementTest(unittest.TestCase):
 		self.assertEqual(pos.current_price, 26200)
 		self.assertEqual(pos.last_update_date, '20180711')
 		self.assertEqual(pos.margin, 0.0)
-
 
 if __name__ == '__main__':
 	unittest.main()

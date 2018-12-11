@@ -8,6 +8,8 @@ except ImportError:
 	from yaml import Loader
 
 pattern = re.compile( r"^(.*)<%= ENV\['(.*)'\] %>(.*)" )
+md_type={'names': ('date', 'open', 'high', 'low', 'close', 'volume'), \
+			'formats': ('M8[D]', 'f4', 'f4', 'f4', 'f4', 'f4')}
 
 def replace_env(value):
 	while True:
@@ -31,7 +33,7 @@ def is_same_week(d1: np.datetime64, d2: np.datetime64):
 
 def __md_access__(d, attr: str):
 	if type(d) == np.ndarray:
-		return d[:][attr]
+		return d[:][attr] if d.shape[0] != 1 else d[0][attr]
 	return d[attr]
 
 
@@ -92,8 +94,7 @@ def md_set_accessor(name:str):
 
 def load_market_data_from_file(filename: str):
 	return np.genfromtxt(filename, encoding='ascii', skip_header=1,
-						 dtype={'names': ('date', 'open', 'high', 'low', 'close', 'volume'),
-								'formats': ('M8[D]', 'f4', 'f4', 'f4', 'f4', 'f4')},
+						 dtype=md_type,
 						 delimiter=',',
 						 converters={0: lambda x: num2date(strpdate2num('%Y-%m-%d')(x))})
 

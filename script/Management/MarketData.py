@@ -3,8 +3,8 @@ from Indicators.Indicator import *
 
 
 class MDReplayer:
-	def __init__(self, md: np.ndarray, sec_id: str, start_index: int):
-		self.sec_id = sec_id
+	def __init__(self, md: np.ndarray, sec_Id: str, start_index: int):
+		self.sec_Id = sec_Id
 		self.daily_md = md
 		self.init_start = start_index
 		self.daily_current = self.init_start
@@ -23,6 +23,9 @@ class MDReplayer:
 
 	def get_weekly_md_until_current(self):
 		return self.weekly_md[:self.weekly_current + 1]
+	
+	def get_daily_md_until_current(self):
+		return self.daily_md[:self.daily_current + 1]
 
 	def has_next_day(self):
 		return self.daily_current < self.daily_md.shape[0]
@@ -33,12 +36,12 @@ class MDReplayer:
 		return None
 	
 	def add_daily_indicator(self, config):
-		assert config['SecId'] == self.sec_id
+		assert config['SecId'] == self.sec_Id
 		value = generate_indicator(self.daily_md, config['Type'], 
 				config['Parameters'] if 'Parameters' in config else None)
 		self.daily_indicators[str(config['Id'])] = value
 	
-	def get_daily_indicator_till_current_day(self, Id: str):
+	def get_daily_indicator_until_current_day(self, Id: str):
 		def slice_data(value, end):
 			if isinstance(value, np.ndarray):
 				return value[0:end]
@@ -104,6 +107,8 @@ class MarketDataManager:
 
 	def __init__(self, md: list, ind: list):
 		self.md_map = dict()
+		self.sod_listeners = []
+		self.eod_listeners = []
 		self.listeners = []
 		configs = dict()
 
@@ -114,23 +119,33 @@ class MarketDataManager:
 			configs[sec].append(config)
 
 		for item in md:
-			sec_id = str(item["SecId"])
+			sec_Id = str(item["SecId"])
 			file_path = item["File"]
 			start = int(item["Start"]) if "Start" in item else 100
-			replay = MDReplayer(load_market_data_from_file(file_path), sec_id, start)
-			if sec_id in configs:
-				for config in configs[sec_id]:
+			replay = MDReplayer(load_market_data_from_file(file_path), sec_Id, start)
+			if sec_Id in configs:
+				for config in configs[sec_Id]:
 					replay.add_daily_indicator(config)
-			self.md_map[sec_id]=replay
+			self.md_map[sec_Id]=replay
 	
-	def get_current_indicator(self, secId: str, indicator_id: str):
-		return self.md_map[secId].get_daily_indicator_till_current_day(indicator_id)
+	def get_current_indicator(self, secId: str, indicator_Id: str):
+		return self.md_map[secId].get_daily_indicator_until_current_day(indicator_Id)
 
 	def subscribe(self, f):
 		self.listeners.append(f)
 
+	def subscribe_eod(self, f):
+		self.sod_listeners.append(f)
+	
+	def subscribe_sod(self, f):
+		self.eod_listeners.append(f)
+
 	def notify(self, msg: dict):
+		for f in self.sod_listeners:
+			f(msg)
 		for f in self.listeners:
+			f(msg)
+		for f in self.eod_listeners:
 			f(msg)
 
 	def run(self):
@@ -144,7 +159,7 @@ class MarketDataManager:
 			movable=[]
 			for x in self.md_map.values():
 				if x.peak_current_date() == min_date:
-					msg[x.sec_id] = x.get_current()
+					msg[x.sec_Id] = x.get_current()
 					movable.append(x)
 			self.notify(msg)
 
