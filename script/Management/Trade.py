@@ -18,6 +18,9 @@ class Trade:
 		self.trans_cost = trans_cost
 		self.price = px
 		self.trade_amount = trade_amount
+	
+	def to_csv(self):
+		return '%s,%d,%f,%f,%f'%(self.date, self.quantity, self.price, self.trans_cost, self.trade_amount)
 
 
 class TradeManager:

@@ -33,6 +33,9 @@ class Security:
 	def conversion(self):
 		return 1.0
 	
+	def round_lot(self, num):
+		return int(float(num)/self.lot_size) * self.lot_size
+	
 	def get_trade_amount(self, quantity: int, price: float):
 		return quantity * price * self. conversion()
 

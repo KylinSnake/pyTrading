@@ -1,4 +1,5 @@
 from Common import *
+from Common.Util import logger
 
 
 def SMA(darray, n):
@@ -121,12 +122,12 @@ def Diverge(indicator, price, is_lowest_extreme, n):
 		return seq[j] > seq[j-1] and seq[j] > seq[j+1]
 	v1 = None
 	v2 = None
-	for i in range(1, n-1):
-		if is_extreme(indicator, n-i-1):
+	for i in range(-2, -1 * n, -1):
+		if is_extreme(indicator, i):
 			if v1 is None:
-				v1 = -i
+				v1 = i
 			elif v2 is None:
-				v2 = -i
+				v2 = i
 		if v1 is not None and v2 is not None:
 			break
 

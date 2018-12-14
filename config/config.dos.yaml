@@ -26,6 +26,6 @@ RiskManager:
   type: FixPctRiskManager
   value: 
     MaxCapitalPercentage: 50
-    RiskPercentage: 2
+    TotalRiskPercentage: 2
 OrderManager:
   type: Simulator

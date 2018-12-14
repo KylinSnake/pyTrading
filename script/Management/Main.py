@@ -4,6 +4,8 @@ from Management.Risk import *
 from Management.Strategy import *
 from Management.Order import *
 from Management.Strategy import *
+from Management.DataCollector import *
+from Common.Util import __services__, __runtime_services_type__, __runtime_strategy_map__
 
 creators = {
 	'SecurityCache': SecurityCacheSingleton.initialize,
@@ -12,27 +14,10 @@ creators = {
 	'MarketDataManager': MarketDataManager.initialize,
 	'PositionManager': PositionManager.initialize,
 	'OrderManager': OrderManager.initialize,
-	'StrategyManager': StrategyManager.initialize
+	'StrategyManager': StrategyManager.initialize,
+	'DataCollector': DataCollector.initialize
 }
 
-__runtime_services_type__ = list()
-
-__services__ = dict()
-
-__runtime_strategy_map__ = dict()
-
-def register_strategy(secId: str, entry, exit):
-	if entry is None or exit is None:
-		raise
-	__runtime_strategy_map__[secId] = (entry, exit)
-
-def add_runtime_service(service: type):
-	__runtime_services_type__.append(service)
-
-def get_app_service(name: str):
-	if name in __services__:
-		return __services__[name]
-	return None
 
 def main(argv: list):
 	if len(argv) != 2:

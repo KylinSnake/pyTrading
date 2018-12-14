@@ -130,6 +130,9 @@ class MarketDataManager:
 	
 	def get_current_indicator(self, secId: str, indicator_Id: str):
 		return self.md_map[secId].get_daily_indicator_until_current_day(indicator_Id)
+	
+	def get_all_indicators(self, secId: str):
+		return self.md_map[secId].daily_indicators
 
 	def subscribe(self, f):
 		self.listeners.append(f)

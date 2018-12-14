@@ -1,4 +1,6 @@
 from Management import *
+from Common import *
+from Common.Util import logger
 
 class StrategyManager:
 	def __init__(self, order_mgr:OrderManager, mkt_mgr: MarketDataManager, pos_mgr: PositionManager):
@@ -57,24 +59,41 @@ class StrategyManager:
 			self.local_data[secId] = dict()
 		return self.local_data[secId]
 	
+	def add_open_order(self, side: Side, order_type=OrderType.Market, limit_price = 0.0, stop_price = 0.0, valid_days = 1):
+		price = limit_price
+		if order_type == OrderType.Market:
+			price = md_close(self.daily_md_until_current_day()[-1])
+		elif order_type == OrderType.Stop:
+			price = stop_price
+		quantity = self.risk_manager().get_open_quantity(self.security().Id, side, price)
+		if quantity != 0:
+			self.order_manager().queue_order(Order(self.security().Id, order_type, quantity, limit_price, stop_price, valid_days))
+	
+	def add_close_order(self, order_type=OrderType.Market, limit_price = 0.0, stop_price = 0.0):
+		price = limit_price
+		if order_type == OrderType.Market:
+			price = md_close(self.daily_md_until_current_day()[-1])
+		elif order_type == OrderType.Stop:
+			price = stop_price
+		quantity = self.risk_manager().get_close_quantity(self.security().Id, price)
+		if quantity != 0:
+			self.order_manager().queue_order(Order(self.security().Id, order_type, quantity, limit_price, stop_price), True)
+			self.position().stop_price = stop_price if limit_price == 0.0 else limit_price
+	
 	def handle_md(self, mkt: dict()):
 		for secId in mkt:
 			sec = SecurityCacheSingleton.get().get_security(secId)
 			if sec is not None and secId in self.entry_signal:
 				self._cur_sec_ = sec
-				order = self.entry_signal[secId](self, mkt[secId])
-				if order is not None:
-					self.order_manager().queue_order(order)
+				self.entry_signal[secId](self, mkt[secId])
 	
-	def handle_position(self, pos_manager: PositionManager):
+	def handle_position(self, pos_manager: PositionManager, date: str):
 		for secId in pos_manager.positions:
 			sec = SecurityCacheSingleton.get().get_security(secId)
 			pos = pos_manager.get_position(secId)
 			if sec is not None and secId in self.exit_signal:
 				self._cur_sec_ = sec
-				order = self.exit_signal[secId](self, pos)
-				if order is not None:
-					self.order_manager().queue_order(order, True)
+				self.exit_signal[secId](self, pos)
 	
 	def set_signal(self, secId, entry_f, exit_f):
 		assert entry_f is not None and exit_f is not None

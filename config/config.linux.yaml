@@ -2,10 +2,10 @@ SecurityCache: "<%= ENV['HOME'] %>/jupyter/workstation/pyTrading/data/security.c
 MarketDataManager: 
   Indicator: 
     - 
-      Id: CCI_14
+      Id: CCI_18
       SecId: HSIY0
       Type: CCI
-      Parameters: 14
+      Parameters: 18
     - 
       Id: DMI_14
       SecId: IF0001
@@ -24,13 +24,15 @@ MarketDataManager:
 TradeManager: 
 PositionManager: 
   value: 
-    init_cash: 1000000
+    init_cash: 2000000
     isMargin: 1
 RiskManager: 
   type: FixPctRiskManager
   value: 
     MaxCapitalPercentage: 50
-    RiskPercentage: 2
+    TotalRiskPercentage: 2
 OrderManager:
   type: Simulator
 StrategyManager:
+DataCollector:
+  base_dir: "<%= ENV['HOME'] %>/jupyter/workstation/pyTrading/output"

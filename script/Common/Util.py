@@ -1,6 +1,7 @@
 import numpy as np
 from matplotlib.dates import strpdate2num, num2date
 import datetime
+import logging
 import yaml, os, re
 try:
 	from yaml import CLoader as Loader
@@ -10,6 +11,30 @@ except ImportError:
 pattern = re.compile( r"^(.*)<%= ENV\['(.*)'\] %>(.*)" )
 md_type={'names': ('date', 'open', 'high', 'low', 'close', 'volume'), \
 			'formats': ('M8[D]', 'f4', 'f4', 'f4', 'f4', 'f4')}
+
+
+FORMAT = '%(asctime)-15s %(levelname)-8s %(message)s (%(filename)s: Line %(lineno)d Function: %(funcName)s)'
+logging.basicConfig(format=FORMAT, level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+__runtime_services_type__ = list()
+
+__services__ = dict()
+
+__runtime_strategy_map__ = dict()
+
+def register_strategy(secId: str, entry, exit):
+	if entry is None or exit is None:
+		raise
+	__runtime_strategy_map__[secId] = (entry, exit)
+
+def add_runtime_service(service: type):
+	__runtime_services_type__.append(service)
+
+def get_app_service(name: str):
+	if name in __services__:
+		return __services__[name]
+	return None
 
 def replace_env(value):
 	while True:

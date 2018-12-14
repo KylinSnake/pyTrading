@@ -5,4 +5,5 @@ from Management.Risk import *
 from Management.MarketData import *
 from Management.Order import *
 from Management.Strategy import *
+from Management.DataCollector import *
 from Management.Main import *

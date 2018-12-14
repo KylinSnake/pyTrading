@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from Management.Position import *
-
+from Management.Order import Side
+from Common.Util import logger
 
 class RiskManager:
 	__metaclass__ = ABCMeta
@@ -21,40 +22,69 @@ class RiskManager:
 			return True
 		return False
 
-	def __init__(self, pos: PositionManager):
+	def __init__(self, pos: PositionManager, setting: dict):
 		self.pos_mgr = pos
+		self.capital_cap = setting["MaxCapitalPercentage"] / 100.0 if "MaxCapitalPercentage" in setting else 0.5
+		self.adjust_open_quantity_functions = dict()
+		self.adjust_close_quantity_functions = dict()
 
 	@abstractmethod
-	def get_open_quantity(self, sec_Id: str, is_buy: bool, open_price: float, stop_price: float):
+	def __maximum_open_quantity__(self, sec: Security, pos: Position, asset: PositionStatus, side: Side, open_price: float):
 		pass
+
+	def get_open_quantity(self, sec_Id: str, side: Side, open_price: float):
+		sec  = SecurityCacheSingleton.get().get_security(sec_Id)
+		assert sec is not None
+		pos: Position = self.pos_mgr.get_position(sec_Id)
+
+		# make sure we are flat or open in the same direction
+		if (pos.quantity < 0 and side.isBuy()) or (pos.quantity > 0 and side.isSell()):
+			return 0
+		
+		asset : PositionStatus = self.pos_mgr.get_status()
+
+		# make sure we have enough cash
+		if asset.free_cash / asset.total_asset < (1 - self.capital_cap):
+			return 0
+		
+		quantity = self.__maximum_open_quantity__(sec, pos, asset, side, open_price)
+
+		if quantity != 0 and sec_Id in self.adjust_open_quantity_functions:
+			func = self.adjust_open_quantity_functions[sec_Id]
+			if func is not None:
+				quantity = func(sec, pos, asset, quantity, open_price)
+
+		if quantity != 0 and asset.free_cash < sec.to_base_ccy(sec.get_transaction_cost(quantity, open_price) + sec.get_initial_margin(quantity, open_price)):
+			return 0
+
+		return sec.round_lot(quantity)
+	
+	def get_close_quantity(self, sec_Id: str, close_price: float):
+		sec  = SecurityCacheSingleton.get().get_security(sec_Id)
+		assert sec is not None
+		pos: Position = self.pos_mgr.get_position(sec_Id)
+		asset : PositionStatus = self.pos_mgr.get_status()
+
+		quantity = pos.quantity * -1
+		if quantity != 0 and sec_Id in self.adjust_close_quantity_functions:
+			func = self.adjust_close_quantity_functions[sec_Id]
+			if func is not None:
+				quantity = func(sec, pos, asset, quantity, close_price)
+
+		return sec.round_lot(quantity)
 
 
 class FixPctRiskManager(RiskManager):
 	def __init__(self, pos: PositionManager, setting: dict):
-		super(FixPctRiskManager, self).__init__(pos)
-		self.pct: float = setting["RiskPercentage"] / 100.0 if "RiskPercentage" in setting else 0.015
-		self.capital_cap = setting["MaxCapitalPercentage"] / 100.0 if "MaxCapitalPercentage" in setting else 0.5
+		super(FixPctRiskManager, self).__init__(pos, setting)
+		self.pct: float = setting["TotalRiskPercentage"] / 100.0 if "TotalRiskPercentage" in setting else 0.015
+		self.risk_per_share_pct = setting['RiskPerSharePercentage'] / 100.0 if 'RiskPerSharePercentage' in setting else 0.03
 
-	def get_open_quantity(self, sec_Id: str, is_buy: bool, open_price: float, stop_price: float):
-		sec: Future = SecurityCacheSingleton.get().get_security(sec_Id)
-		assert sec is not None
-		risk_per_share: float = abs(open_price - stop_price) * sec.fx_rate * sec.conversion()
-		open_qty: int = 0
-		factor: int = 1 if is_buy else -1
-		if sec_Id in self.pos_mgr.positions:
-			pos: Position = self.pos_mgr.positions[sec_Id]
-			open_qty = pos.quantity
-			if open_qty * factor < 0:
-				return 0
-		status = self.pos_mgr.get_status()
-		if status.free_cash / status.total_asset < (1 - self.capital_cap):
-			return 0
-		total_risk: float = self.pct * status.total_asset
-		qty: int = int(total_risk/risk_per_share)
-		qty = abs(qty) - abs(open_qty)
-		if qty <= 0:
-			return 0
+	def __maximum_open_quantity__(self, sec: Security, pos: Position, asset: PositionStatus, side: Side, open_price: float):
+		risk_per_share: float = sec.to_base_ccy(sec.get_trade_amount(1, open_price) * self.risk_per_share_pct)
+		total_risk: float = self.pct * asset.total_asset
+		qty: int = int(total_risk/risk_per_share) - abs(pos.quantity)
+		if qty > 0:
+			return qty if side.isBuy() else qty * -1
+		return 0
 		
-		if status.free_cash < sec.to_base_ccy(sec.get_transaction_cost(qty, open_price) + sec.get_initial_margin(qty, open_price)):
-			return 0
-		return factor * qty
