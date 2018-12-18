@@ -115,7 +115,7 @@ def handle_file(path, filename):
 	date_str = filename[0:8]
 	md_maps = {'IF':[], 'IC':[], 'IH':[], 'TS':[], 'TF':[], 'T':[] }
 	lines = []
-	with open(join(input_dir, filename), 'rb') as f:
+	with open(join(path, filename), 'rb') as f:
 		content = f.read()
 		lines = ''.join(chr(i) for i in content if i < 128).split('\n')
 	line_map = dict()
