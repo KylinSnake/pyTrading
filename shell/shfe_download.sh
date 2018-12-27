@@ -25,14 +25,14 @@ while [[ $((CURRENT-LAST)) -ge 0 ]] ;
 do
 	wget "http://www.shfe.com.cn/historyData/MarketData_Year_${LAST}.zip" 
 	if [[ $? -ne 0 ]] ; then
-		ERROR = 1
+		ERROR=1
 		MSG="Failed to download ${LAST}"
 		break
 	fi
 	mkdir tmp
 	unzip MarketData_Year_${LAST}.zip -d tmp/
 	if [[ $? -ne 0 ]]; then
-		ERROR = 1
+		ERROR=1
 		MSG="Failed to unzip ${LAST}.zip"
 		break
 	fi
@@ -46,12 +46,12 @@ cd ../
 
 
 LAST_DAY=""
-MD_TARGET=${MD_DIR}/SHFE
+MD_TARGET=${MD_DIR}/SHFE/history
 
 rm -rf $FOLDER/*
 
 
-LAST_FILE="${MD_DIR}/SHFE/.last"
+LAST_FILE="${MD_TARGET}/.last"
 
 if [ -f ${LAST_FILE} ]; then
 	LAST_DAY=`cat $LAST_FILE`
@@ -79,7 +79,13 @@ from os.path import isfile, join
 import pandas as pd
 import numpy as np
 import datetime
+import sys
 from Tools.Mail import *
+
+if $ERROR != 0:
+	send_mail("$MSG", 'Process SHFE history data Failed on %s'%str(datetime.date.today()))
+	print("ERROR: $MSG")
+	sys.exit(1)
 
 last_day='$LAST_DAY'
 
@@ -87,7 +93,7 @@ def n(a):
 	return 0 if np.isnan(a) else a
 
 class Record:
-	def turnover(self, a):
+	def _turnover(self, a):
 		return a * 10000
 	
 	def multiply_with_lot(self, a):
@@ -115,7 +121,11 @@ class Record:
 			return a * 10
 		if self.code.startswith('pb'):
 			return a * 5 if self.date >= '20130902' else a * 25
-		return a
+		code = self.code[0:2].upper()
+		lots_map = {'AU':1000, 'AG':15, 'CU':5, 'AL':5, 'ZN':5, 'RU':10, 'FU':50, 'BU':10, 'RB':10, 'WR':10, 'HC':10, 'PB':5, 'SP':10, 'NI':1, 'SN':1, 'SC':1000}
+		if code in lots_map:
+			return lots_map[code]
+		raise Exception('No lots found')
 		
 	def __init__(self, contract_code, array):
 		self.code = contract_code
@@ -128,7 +138,7 @@ class Record:
 		self.close = n(array[7])
 		self.settle = n(array[8])
 		self.volume = self.multiply_with_lot(n(array[11]))
-		self.turnover = self.turnover(n(array[12]))
+		self.turnover = self._turnover(n(array[12]))
 		self.outstanding = self.multiply_with_lot(n(array[13]))
 	
 	def to_csv(self, f):
@@ -138,8 +148,8 @@ output_files=dict()
 
 def get_file(id):
 	if id not in output_files:
-		existing = isfile("${MD_DIR}/SHFE/%s_md.csv"%id)
-		output_files[id] = open("${MD_DIR}/SHFE/%s_md.csv"%id, 'a')
+		existing = isfile("${MD_TARGET}/%s_md.csv"%id)
+		output_files[id] = open("${MD_TARGET}/%s_md.csv"%id, 'a')
 		if not existing:
 			output_files[id].write('#date|open|high|low|close|volume|turnover|outstanding|contractNo\n')
 	return output_files[id]
@@ -197,9 +207,10 @@ try:
 
 	with open("$LAST_FILE",'w') as f:
 		f.write(last_day)
-	print('Success on the SHFE data on %s'%str(datetime.date.today()))
+	print('Success on the SHFE history data on %s'%str(datetime.date.today()))
 except Exception as e:
-	send_mail(str(e), 'Process SHFE data Failed on %s'%str(datetime.date.today()))
+	print("ERROR: %s"%str(e))
+	send_mail(str(e), 'Process SHFE history data Failed on %s'%str(datetime.date.today()))
 
 EOF
 

@@ -1,7 +1,6 @@
 YEAR=2010
 MONTH=04
 
-
 if [[ -z ${ARCHIVE_DIR} ]]; then
 	echo "ERROR: no ardir set"
 	exit 1
@@ -28,13 +27,13 @@ while [[ $((CURRENT-LAST)) -ge 0 ]] ;
 do
 	wget "http://www.cffex.com.cn/sj/historysj/$LAST/zip/${LAST}.zip" 
 	if [[ $? -ne 0 ]] ; then
-		ERROR = 1
+		ERROR=1
 		MSG="Failed to download ${LAST}"
 		break
 	fi
 	unzip ${LAST}.zip
 	if [[ $? -ne 0 ]]; then
-		ERROR = 1
+		ERROR=1
 		MSG="Failed to unzip ${LAST}.zip"
 		break
 	fi
@@ -61,7 +60,7 @@ MD_TARGET=${MD_DIR}/CFFEX
 
 rm -rf $FOLDER/*
 
-LAST_FILE="${MD_DIR}/CFFEX/.last"
+LAST_FILE="${MD_TARGET}/.last"
 
 if [ -f ${LAST_FILE} ]; then
 	LAST_DAY=`cat $LAST_FILE`
@@ -76,14 +75,20 @@ python3 << EOF
 from os import listdir
 from os.path import isfile, join
 import datetime
+import sys
 from Tools.Mail import *
+
+if $ERROR != 0:
+	send_mail("$MSG", 'Process CFFEX data Failed on %s'%str(datetime.date.today()))
+	print("ERROR: $MSG")
+	sys.exit(1)
 
 output_files=dict()
 
 def get_file(id):
 	if id not in output_files:
-		existing = isfile("${MD_DIR}/CFFEX/%s_md.csv"%id)
-		output_files[id] = open("${MD_DIR}/CFFEX/%s_md.csv"%id, 'a')
+		existing = isfile("${MD_TARGET}/%s_md.csv"%id)
+		output_files[id] = open("${MD_TARGET}/%s_md.csv"%id, 'a')
 		if not existing:
 			output_files[id].write('#date|open|high|low|close|volume|turnover|outstanding|contractName\n')
 	return output_files[id]
@@ -108,7 +113,7 @@ def process_lines(key, lines, date_str):
 		for i in range(0, 4):
 			token = lines[i].split(',')
 			f = get_file(key+'_'+file_names[i])
-			f.write('%s,%s,%s,%s,%s,%s,%s,%s,%s\n'%(date_str, _t(token[1]), _t(token[2]), _t(token[3]), _t(token[7]), _t(token[4]), _t(token[5]), _t(token[6]), _t(token[0])))
+			f.write('%s,%s,%s,%s,%s,%s,%d,%s,%s\n'%(date_str, _t(token[1]), _t(token[2]), _t(token[3]), _t(token[7]), _t(token[4]), float(_t(token[5])) * 10000, _t(token[6]), _t(token[0])))
 		
 
 def handle_file(path, filename):
@@ -154,6 +159,7 @@ try:
 			f.write(last_file)
 	print('Success on the CFFEX data on %s'%str(datetime.date.today()))
 except Exception as e:
+	print("ERROR: %s"%str(e))
 	send_mail(str(e), 'Process CFFEX data Failed on %s'%str(datetime.date.today()))
 
 EOF
