@@ -69,7 +69,7 @@ class StrategyManager:
 		if quantity != 0:
 			self.order_manager().queue_order(Order(self.security().Id, order_type, quantity, limit_price, stop_price, valid_days))
 	
-	def add_close_order(self, order_type=OrderType.Market, limit_price = 0.0, stop_price = 0.0):
+	def add_close_order(self, order_type=OrderType.Market, limit_price = 0.0, stop_price = 0.0, init_stop = False):
 		price = limit_price
 		if order_type == OrderType.Market:
 			price = md_close(self.daily_md_until_current_day()[-1])
@@ -77,7 +77,7 @@ class StrategyManager:
 			price = stop_price
 		quantity = self.risk_manager().get_close_quantity(self.security().Id, price)
 		if quantity != 0:
-			self.order_manager().queue_order(Order(self.security().Id, order_type, quantity, limit_price, stop_price), True)
+			self.order_manager().queue_order(Order(self.security().Id, order_type, quantity, limit_price, stop_price), init_stop)
 			self.position().stop_price = stop_price if limit_price == 0.0 else limit_price
 	
 	def handle_md(self, mkt: dict()):

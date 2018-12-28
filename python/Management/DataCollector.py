@@ -43,15 +43,19 @@ class DataCollector:
 				ind_fmt = '%s'
 				if isinstance(ind, np.ndarray):
 					value = np.vstack([date.astype(str), ind.astype(str)])
+					header = 'date|value'
 				elif isinstance(ind, tuple):
 					value = np.vstack([date.astype(str)] + [x.astype(str) for x in list(ind)])
+					header = 'date|' + '|'.join(['value_%d'%i for i in range(0, len(list(ind)))])
 				elif isinstance(ind, list):
 					value = np.vstack([date.astype(str)] + [x.astype(str) for x in ind])
+					header = 'date|' + '|'.join(['value_%d'%i for i in range(0, len(ind))])
 				elif isinstance(ind, dict):
-					value = np.vstack([date.astype(str)] + [x.astype(str) for x in ind.values()])
+					value = np.vstack([date.astype(str)] + [ind[x].astype(str) for x in sorted(ind.keys())])
+					header = 'date|' + '|'.join(sorted(ind.keys()))
 				value = np.transpose(value)
 				ind_fmt +=',%s'*(value.shape[1] - 1)
-				np.savetxt(name, value, delimiter=',', fmt=ind_fmt)
+				np.savetxt(name, value, delimiter=',', fmt=ind_fmt, header = header)
 
 	def handle_trade(self, trade:Trade):
 		if trade.secId not in self.trade_files:
@@ -63,11 +67,11 @@ class DataCollector:
 		self.asset_file.write('%s,%s\n'%(date, asset.to_csv()))
 		for secId in pos_mgr.positions:
 			pos = pos_mgr.positions[secId]
-			if secId not in self.pos_files:
-				self.pos_files[secId] = open(self.base_path + '/%s_pos.csv'%secId, 'w')
-			self.pos_files[secId].write('%s\n'%pos.to_csv())
+			if date == pos.last_update_date:
+				if secId not in self.pos_files:
+					self.pos_files[secId] = open(self.base_path + '/%s_pos.csv'%secId, 'w')
+				self.pos_files[secId].write('%s\n'%pos.to_csv())
 	
-
 	@staticmethod
 	def initialize(config: dict, services:dict):
 		name = config['name'] if config is not None and 'name' in config else 'DataCollector'

@@ -1,2 +1,3 @@
 *.pyc
 /output
+/python/.ipynb_checkpoints/

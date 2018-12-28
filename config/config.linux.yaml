@@ -3,7 +3,7 @@ MarketDataManager:
   Indicator: 
     - 
       Id: CCI_18
-      SecId: HSIY0
+      SecId: IF0001
       Type: CCI
       Parameters: 18
     - 
@@ -21,6 +21,7 @@ MarketDataManager:
     - 
       File: "<%= ENV['HOME'] %>/jupyter/workstation/pyTrading/data/IF0001 history.csv"
       SecId: IF0001
+      Start: 100
 TradeManager: 
 PositionManager: 
   value: 

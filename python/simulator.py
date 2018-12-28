@@ -44,10 +44,10 @@ def exit_signal(mgr, pos):
 			price = c_price
 	local['stop'] = price
 
-	mgr.add_close_order(OrderType.Stop, stop_price = price)
+	mgr.add_close_order(OrderType.Stop, stop_price = price, init_stop = last is None)
 
 
-register_strategy('HSIY0', entry_signal, exit_signal)
+register_strategy('IF0001', entry_signal, exit_signal)
 
 if os.name == 'nt':
 	main(['script','c:\\workstation\\config\\config.dos.yaml'])

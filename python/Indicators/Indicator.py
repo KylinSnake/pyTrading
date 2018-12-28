@@ -160,7 +160,7 @@ def generate_indicator(md: np.ndarray, indicator_type: str, parameters):
 			di_length = get_with_default(parameters, 'DI Length', 14)
 			adx_smoothing = get_with_default(parameters, 'ADX Smooth', 14)
 		(pdi, ndi, adx) = DMI(md_high(md), md_low(md), md_low(md), adx_smoothing, di_length)
-		return { '+DI':pdi, '-DI':ndi, 'ADX':adx }
+		return { 'PDI':pdi, 'NDI':ndi, 'ADX':adx }
 	
 	if indicator_type == 'SMA' or indicator_type == 'EMA':
 		func = SMA if indicator == 'SMA' else EMA
