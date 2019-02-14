@@ -46,8 +46,12 @@ def exit_signal(mgr, pos):
 
 	mgr.add_close_order(OrderType.Stop, stop_price = price, init_stop = last is None)
 
-
 register_strategy('IF0001', entry_signal, exit_signal)
+config_market_data('IF0001', start='20150101', last='20160101', 
+	indicators={'EMA_3':lambda x,y,z:EMA(md_close(x),5), 
+				'EMA_10':lambda x,y,z:EMA(md_close(x),10),
+				'EMA_30':lambda x,y,z:EMA(md_close(x),30),
+				'SAR':lambda x,y,z:SAR(md_high(x), md_low(x), af_step=0.01)})
 
 if os.name == 'nt':
 	main(['script','c:\\workstation\\config\\config.dos.yaml'])

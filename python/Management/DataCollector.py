@@ -17,8 +17,12 @@ class DataCollector:
 			if not os.path.exists(directory):
 				os.makedirs(directory)
 			self.base_path = directory
+
 		self.asset_file=open(self.base_path + '/asset.txt', 'w')
 		self.output_md()
+	
+	def get_base_dir(self):
+		return self.base_path
 	
 	def __del__(self):
 		def clean_up(files):

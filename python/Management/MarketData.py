@@ -1,12 +1,36 @@
 from Common import *
 from Indicators.Indicator import *
+import numpy as np
 
 
 class MDReplayer:
-	def __init__(self, md: np.ndarray, sec_Id: str, start_index: int):
+	def __init__(self, md: np.ndarray, sec_Id: str, start, last = None):
 		self.sec_Id = sec_Id
 		self.daily_md = md
+
+		if type(start) == int and start < 2 * pow(10,7):
+			start_index = start
+		else:
+			start_index = normalize_date_str(start)
+			if start_index is not None:
+				start_index = get_md_start_index(self.daily_md, start_index)
+			if start_index is None:
+				raise Exception("Failed to convert start %s to index or date"%str(start))
+
 		self.init_start = start_index
+
+		if last is None:
+			self.end = self.daily_md.shape[0]
+		else:
+			if type(last) == int and last < 2 * pow(10,7):
+				last_index = last
+			else:
+				last_index = normalize_date_str(last)
+				if last_index is not None:
+					last_index = get_md_last_index(self.daily_md, last_index)
+				if last_index is None:
+					raise Exception("Failed to conver last %s to index or date"%str(last))
+			self.end = min(last_index + 1, self.daily_md.shape[0])
 		self.daily_current = self.init_start
 		self.monthly_md = np.empty(self.daily_md.shape, self.daily_md.dtype)
 		self.weekly_md = np.empty(self.daily_md.shape, self.daily_md.dtype)
@@ -28,7 +52,7 @@ class MDReplayer:
 		return self.daily_md[:self.daily_current + 1]
 
 	def has_next_day(self):
-		return self.daily_current < self.daily_md.shape[0]
+		return self.daily_current < self.end
 
 	def peak_current_date(self):
 		if self.has_next_day():
@@ -102,10 +126,10 @@ class MarketDataManager:
 		name = config['name'] if config is not None and 'name' in config else 'MarketDataManager'
 		md = config['MarketData']
 		ind = config['Indicator']
-		services[name] = MarketDataManager(md, ind)
+		services[name] = MarketDataManager(md, ind, get_md_override_map())
 		return True
 
-	def __init__(self, md: list, ind: list):
+	def __init__(self, md: list, ind: list, override_map: dict() = {}):
 		self.md_map = dict()
 		self.sod_listeners = []
 		self.eod_listeners = []
@@ -121,12 +145,44 @@ class MarketDataManager:
 		for item in md:
 			sec_Id = str(item["SecId"])
 			file_path = item["File"]
-			start = int(item["Start"]) if "Start" in item else 100
-			replay = MDReplayer(load_market_data_from_file(file_path), sec_Id, start)
+			start = item["Start"] if "Start" in item else 100
+			last = item["Last"] if "Last" in item else None
+			over_indicators = dict()
+			if sec_Id in override_map:
+				over_conf = override_map[sec_Id]
+				file_path = over_conf['File'] if over_conf['File'] is not None else file_path
+				start = over_conf['Start'] if over_conf['Start'] is not None else start
+				last = over_conf['Last'] if over_conf['Last'] is not None else last
+				if over_conf['Indicators'] is not None and len(over_conf['Indicators'].keys()) > 0:
+					over_indicators = over_conf['Indicators']
+			replay = MDReplayer(load_market_data_from_file(file_path), sec_Id, start, last)
+
+			for name in over_indicators:
+				ind = over_indicators[name](replay.daily_md, replay.init_start, replay.end)
+				if ind is not None:
+					replay.daily_indicators[name] = ind
 			if sec_Id in configs:
 				for config in configs[sec_Id]:
-					replay.add_daily_indicator(config)
+					if config['Id'] not in over_indicators:
+						replay.add_daily_indicator(config)
 			self.md_map[sec_Id]=replay
+
+		handled = self.md_map.keys()
+		for secId in override_map:
+			if secId not in handled:
+				over_conf = override_map[secId]
+				file_path = over_conf['File']
+				if file_path is None:
+					raise Exception("Override MD, %s has no replay filed configured"%secId)
+				start = over_conf['Start'] if over_conf['Start'] is not None else 100
+				last = over_conf['Last']
+				replay = MDReplayer(load_market_data_from_file(file_path), secId, start, last)
+				over_indicators = over_conf['Indicators'] 
+				for name in over_indicators:
+					ind = over_indicators[name](replay.daily_md, replay.init_start, replay.end)
+					if ind is not None:
+						replay.daily_indicators[name] = ind
+				self.md_map[sec_Id]=replay
 	
 	def get_current_indicator(self, secId: str, indicator_Id: str):
 		return self.md_map[secId].get_daily_indicator_until_current_day(indicator_Id)

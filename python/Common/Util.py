@@ -23,6 +23,8 @@ __services__ = dict()
 
 __runtime_strategy_map__ = dict()
 
+__runtime_md__ = dict()
+
 def register_strategy(secId: str, entry, exit):
 	if entry is None or exit is None:
 		raise
@@ -35,6 +37,22 @@ def get_app_service(name: str):
 	if name in __services__:
 		return __services__[name]
 	return None
+
+def config_market_data(secId: str, md_file = None, start = None, last = None, indicators: dict = {}):
+	if secId not in __runtime_md__:
+		__runtime_md__[secId] = {'File':md_file, 'Start':start, 'Last':last, 'Indicators':indicators}
+	else:
+		if md_file is not None:
+			__runtime_md__[secId]['File'] = md_file
+		if start is not None:
+			__runtime_md__[secId]['Start'] = start
+		if last is not None:
+			__runtime_md__[secId]['Last'] = last
+		if len(indicators.keys()) > 0:
+			__runtime_md__[secId]['Indicators'] = indicators
+
+def get_md_override_map():
+	return __runtime_md__
 
 def replace_env(value):
 	while True:
@@ -55,6 +73,29 @@ def is_same_week(d1: np.datetime64, d2: np.datetime64):
 	c1: datetime.datetime = d1.astype(datetime.datetime)
 	c2: datetime.datetime = d2.astype(datetime.datetime)
 	return c1.isocalendar() == c2.isocalendar()
+
+def normalize_date_str(value):
+	if type(value) == int:
+		if len(str(value)) == 8:
+			value = str(value)
+	if type(value) == str:
+		if len(value) == 8 and value.isdigit():
+			return '%s-%s-%s'%(value[0:4],value[4:6],value[6:8])
+		if len(value) == 10 and value[0:4].isdigt() and int(value[5:7]) <= 12 and int(value[8:10]) <= 31:
+			return '%s-%s-%s'%(value[0:4],value[5:7],value[8:10])
+	return None
+
+def get_md_start_index(d, start_str):
+	ret = np.argwhere(md_date(d) >= np.datetime64(start_str))
+	if len(ret) > 0:
+		return ret[0][0]
+	return None
+
+def get_md_last_index(d, last_str):
+	ret = np.argwhere(md_date(d) <= np.datetime64(last_str))
+	if len(ret) > 0:
+		return ret[-1][0]
+	return None
 
 def __md_access__(d, attr: str):
 	if type(d) == np.ndarray:
