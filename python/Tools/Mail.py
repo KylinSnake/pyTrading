@@ -14,7 +14,7 @@ from email.mime.text import MIMEText
 
 import os
 
-sender='kylinsnake@gmail.com'
+sender='ruyunli@gmail.com'
 receiver = '250446897@qq.com'
 server_name = 'smtp.gmail.com'
 port = 465
